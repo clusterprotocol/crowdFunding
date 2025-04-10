@@ -11,24 +11,6 @@ export const sideBarItems = [
         route: '/'
     },
     {
-        title: "Campaign",
-        icon: CampaignOutlinedIcon,
-        route: '/campaign'
-    }
-    ,
-    {
-        title: "Payment",
-        icon: LocalAtmOutlinedIcon,
-        route: '/payment'
-    }
-    ,
-    {
-        title: "Transaction",
-        icon: PaymentsOutlinedIcon,
-        route: '/transaction'
-    }
-    ,
-    {
         title: "My Campaign",
         icon: AccountCircleOutlinedIcon,
         route: '/profile'

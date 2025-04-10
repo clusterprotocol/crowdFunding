@@ -1,37 +1,51 @@
-import { useConnectionStatus } from "@thirdweb-dev/react";
-import { createContext, useState, useEffect } from "react";
+// context/WalletConnectionContext.tsx
+import React, { createContext, useEffect, useState } from "react";
+import { ethers } from "ethers";
 
-
-
-
-interface ChildrenType {
-    children: React.ReactNode
+interface WalletContextType {
+  isWalletConnected: boolean;
+  currentAccount: string | null;
+  connectWallet: () => Promise<void>;
 }
 
-export const WalletConnectionContext = createContext({});
+export const WalletConnectionContext = createContext<WalletContextType>({
+  isWalletConnected: false,
+  currentAccount: null,
+  connectWallet: async () => {},
+});
 
+export const WalletConnectionContextProvider = ({ children }: { children: React.ReactNode }) => {
+  const [currentAccount, setCurrentAccount] = useState<string | null>(null);
+  const [isWalletConnected, setWalletConnected] = useState(false);
 
-export const WalletConnectionContextProvider = ({ children }: ChildrenType) => {
+  const connectWallet = async () => {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        setCurrentAccount(accounts[0]);
+        setWalletConnected(true);
+      } catch (err) {
+        console.error("Wallet connection error:", err);
+      }
+    }
+  };
 
-    //checking wallet status
-    const [isWalletConnected, setWalletConnectionStatus] = useState(false);
-    const connectionStatus = useConnectionStatus();
-    useEffect(() => {
-        if (connectionStatus == 'connected') {
-            setWalletConnectionStatus(true);
+  useEffect(() => {
+    const checkIfWalletIsConnected = async () => {
+      if (typeof window.ethereum !== "undefined") {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts.length > 0) {
+          setCurrentAccount(accounts[0]);
+          setWalletConnected(true);
         }
-        else {
-            setWalletConnectionStatus(false);
-        }
-    }, [connectionStatus])
+      }
+    };
+    checkIfWalletIsConnected();
+  }, []);
 
-
-
-
-
-    return <WalletConnectionContext.Provider value={{
-        isWalletConnected
-    }}>
-        {children}
+  return (
+    <WalletConnectionContext.Provider value={{ isWalletConnected, currentAccount, connectWallet }}>
+      {children}
     </WalletConnectionContext.Provider>
-}
+  );
+};

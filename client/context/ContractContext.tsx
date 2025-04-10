@@ -1,111 +1,154 @@
-import { useAddress, useContract, useContractRead, useContractWrite } from "@thirdweb-dev/react";
-import { BigNumber, ethers } from "ethers";
-import React, { ReactNode, createContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { ethers } from "ethers";
+import { WalletConnectionContext } from "./WalletConnectionContext";
+import abi from "../contracts/Campaign-abi.json";
+import deployedAddress from '../contracts/Campaign-address.json';
 
 
+const CONTRACT_ADDRESS = deployedAddress.address;
 
 export const ContractContext = createContext({});
 
+export const ContractContextProvider = ({ children }: { children: React.ReactNode }) => {
+  const [allCampaignsData, setAllCampaignsData] = useState<any[]>([]);
+  const [isCampaignDataLoading, setIsCampaignDataLoading] = useState(true);
+  const [isDonateLoading, setIsDonateLoading] = useState(false);
+  const [campaignId, setCampaignId] = useState('');
+  const [donatationData, setDonationData] = useState<any[]>([]);
+  const [isDonatorsDataLoading, setIsDonatorsDataLoading] = useState(true);
 
-interface ChildrenType {
-    children: ReactNode
-}
+  const [userCampaign, setUserCampaign] = useState<any[]>([]);
 
-export const ContractContextProvider = ({ children }: ChildrenType) => {
-    const _owner = useAddress();
-    const [campaignId, setCampaignId] = useState('');
-    const address = process.env.NEXT_PUBLIC_CONTRACT_KEY;
-    const { contract } = useContract(address);
-    const [donatationData, setDonationData] = useState(Array);
-    const [userCampaign, setUserCampaign] = useState(Array);
+  const { currentAccount } = useContext(WalletConnectionContext);
+  const [contract, setContract] = useState<ethers.Contract | null>(null);
 
-
-
-    //create campaign
-    const { mutateAsync: createCampaign, isLoading: isCreateCampaignLoading } = useContractWrite(contract, "createCampaign");
-    const createCampaignCall = async (_title: String, _description: String, _target: String, _deadline: any, _image: String) => {
-        console.log("Called")
-        try {
-
-            const target = ethers.utils.parseEther(_target.toString());
-            const data = await createCampaign({ args: [_owner, _title, _description, target, new Date(_deadline).getTime(), _image] });
-            // console.info("Number of campaigns", data);
-        } catch (error) {
-            console.error("contract Create Campaign failure", error);
-        }
+  const donateCampaignCall = async (campaignId: number, donateAmount: string) => {
+    if (!contract) return;
+    setIsDonateLoading(true);
+    try {
+      const tx = await contract.donateToCampaign(campaignId, {
+        value: ethers.utils.parseEther(donateAmount),
+      });
+      await tx.wait();
+      console.log("Donation successful:", tx);
+    } catch (err) {
+      console.error("Donation failed:", err);
     }
+    setIsDonateLoading(false);
+  };
 
-
-
-    //donate to campaign
-    const { mutateAsync: donateToCampaign, isLoading: isDonateLoading } = useContractWrite(contract, "donateToCampaign",)
-    const donateCampaignCall = async (_id: string, donateAmount: String) => {
-        try {
-            const data = await donateToCampaign({ args: [_id], overrides: { value: ethers.utils.parseEther(donateAmount.toString()) } });
-            // console.info("contract call successs", data);
-        } catch (err) {
-            console.error("contract call failure", err);
-        }
+  // Setup contract
+  useEffect(() => {
+    if (typeof window.ethereum !== "undefined" && currentAccount) {
+      const provider = new ethers.providers.Web3Provider(window.ethereum as any);
+      const signer = provider.getSigner();
+      const _contract = new ethers.Contract(CONTRACT_ADDRESS, abi, signer);
+      setContract(_contract);
     }
+  }, [currentAccount]);
 
+  // Fetch all campaigns
+  const fetchAllCampaigns = async () => {
+    if (!contract) return;
 
+    setIsCampaignDataLoading(true);
+    try {
+      const campaigns = await contract.getCampaigns();
+      setAllCampaignsData(campaigns);
+      console.log("Fetched campaigns:", campaigns);
+    } catch (err) {
+      console.error("Error fetching campaigns:", err);
+    }
+    setIsCampaignDataLoading(false);
+  };
 
-    //read all campaigns
-    const { data: allCampaignsData, isLoading: isCampaignDataLoading } = useContractRead(contract, "getCampaigns")
+  useEffect(() => {
+    if (contract && currentAccount) {
+      fetchAllCampaigns();
+    }
+  }, [contract, currentAccount]);
 
+  // Fetch donators data
+  useEffect(() => {
+    const fetchDonators = async () => {
+      if (!contract || campaignId === '') return;
 
-    //get donators
-    const { data: donatorsData, isLoading: isDonatorsDataLoading } = useContractRead(contract, "getDonators", [campaignId])
-
-
-    useEffect(() => {
+      setIsDonatorsDataLoading(true);
+      try {
+        const donators = await contract.getDonators(Number(campaignId));
         const parsedDonations = [];
-        for (let i = 0; i < donatorsData?.[0].length; i++) {
-            parsedDonations.push({
-                donator: donatorsData[0][i],
-                donation: ethers.utils.formatEther(donatorsData[1][i].toString())
-            })
+        for (let i = 0; i < donators[0].length; i++) {
+          parsedDonations.push({
+            donator: donators[0][i],
+            donation: ethers.utils.formatEther(donators[1][i].toString()),
+          });
         }
         setDonationData(parsedDonations);
-    }, [donatorsData])
+      } catch (err) {
+        console.error("Error fetching donators:", err);
+      }
+      setIsDonatorsDataLoading(false);
+    };
 
+    fetchDonators();
+  }, [campaignId, contract]);
 
+  // Create campaign
+  const createCampaignCall = async (
+    title: string,
+    description: string,
+    target: string,
+    deadline: Date,
+    image: string
+  ) => {
+    if (!contract) return;
+    try {
+      const tx = await contract.createCampaign(
+        currentAccount,
+        title,
+        description,
+        ethers.utils.parseEther(target),
+        new Date(deadline).getTime(),
+        image
+      );
+      await tx.wait();
+      console.log("Campaign created:", tx);
+      fetchAllCampaigns(); // Refresh after creating
+    } catch (err) {
+      console.error("Create campaign failed", err);
+    }
+  };
 
+  // Filter user campaigns
+  useEffect(() => {
+    if (!allCampaignsData || !currentAccount) return;
 
-    useEffect(() => {
-        const filteredCampaign = [];
-        for (let i = 0; i < allCampaignsData?.length; i++) {
-            if (allCampaignsData?.[i].owner == _owner) {
-                filteredCampaign.push({
-                    id: i,
-                    data: allCampaignsData?.[i]
-                })
-            }
-        }
-        setUserCampaign(filteredCampaign);
+    const filtered = allCampaignsData
+      .map((campaign, index) => ({
+        id: index,
+        data: campaign,
+      }))
+      .filter((c) => c.data.owner.toLowerCase() === currentAccount.toLowerCase());
 
-    }, [allCampaignsData])
+    setUserCampaign(filtered);
+  }, [allCampaignsData, currentAccount]);
 
-
-
-
-
-    return <ContractContext.Provider value={{
+  return (
+    <ContractContext.Provider
+      value={{
         createCampaignCall,
-        isCreateCampaignLoading,
-        donateCampaignCall,
-        isDonateLoading,
-        isCampaignDataLoading,
         allCampaignsData,
+        isCampaignDataLoading,
+        campaignId,
         setCampaignId,
-        isDonatorsDataLoading,
         donatationData,
-        userCampaign
-    }}>
-        {children}
+        isDonatorsDataLoading,
+        userCampaign,
+        donateCampaignCall, 
+    isDonateLoading 
+      }}
+    >
+      {children}
     </ContractContext.Provider>
-}
-
-
-
-
+  );
+};

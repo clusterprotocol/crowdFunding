@@ -20,24 +20,25 @@ function Profile() {
 
 
 
-
-    if (!isWalletConnected) {
+    if (!isWalletConnected || !userCampaign) {
         return null;
-    }
-
-
-    return (
+      }
+      
+      return (
         <>
-            <Typography sx={{ color: 'white', fontWeight: 'bold', mb: 2 }}>My Campaigns({userCampaign.length})</Typography>
-            <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
-                {
-                    userCampaign.map((campaign, index) => {
-                        return <CampaignCard key={index} data={campaign?.data} id={campaign?.id} />
-                    })
-                }
-            </Grid>
-        </ >
-    )
+          <Typography sx={{ color: 'white', fontWeight: 'bold', mb: 2 }}>
+            My Campaigns ({userCampaign?.length || 0})
+          </Typography>
+          <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
+            {
+              userCampaign.map((campaign, index) => (
+                <CampaignCard key={index} data={campaign?.data} id={campaign?.id} />
+              ))
+            }
+          </Grid>
+        </>
+      );
+      
 }
 
 export default Profile
