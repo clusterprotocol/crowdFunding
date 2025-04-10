@@ -11,5 +11,8 @@
   "description": "",
   "devDependencies": {
     "solc": "^0.8.29"
+  },
+  "dependencies": {
+    "blockchain": "file:"
   }
 }
