@@ -17,7 +17,25 @@ import { ContractContext } from '../context/ContractContext';
 import { daysLeft } from '../utils';
 import { ethers } from 'ethers';
 
-function Details() {
+// ✅ Define interfaces
+interface Campaign {
+  owner: string;
+  title: string;
+  description: string;
+  target: string;
+  deadline: string | number | { toNumber: () => number };
+  amountCollected: string;
+  image: string;
+  donators: string[];
+  donations: string[];
+}
+
+interface Donator {
+  donator: string;
+  donation: string;
+}
+
+const Details: React.FC = () => {
   const router = useRouter();
   const { id } = router.query;
 
@@ -29,24 +47,33 @@ function Details() {
     donatationData,
     setCampaignId,
     userCampaign,
+  }: {
+    isCampaignDataLoading: boolean;
+    allCampaignsData: Campaign[];
+    isDonatorsDataLoading: boolean;
+    donatationData: Donator[];
+    setCampaignId: (id: string) => void;
+    userCampaign: { id: number; data: Campaign }[];
   } = useContext(ContractContext);
 
-  // ✅ Step 1: Redirect if not connected
+  // ✅ Redirect if wallet not connected
   useEffect(() => {
     if (!isWalletConnected) {
       router.push('/');
     }
-  }, [isWalletConnected]);
+  }, [isWalletConnected, router]);
 
-  // ✅ Step 2: Set campaign ID for fetching donators
+  // ✅ Set current campaign ID in context
   useEffect(() => {
-    if (id) {
-      setCampaignId(id as string);
+    if (id && typeof id === 'string') {
+      setCampaignId(id);
     }
-  }, [id]);
+  }, [id, setCampaignId]);
 
-  // ✅ Step 3: Guard for loading
-  const campaign = id ? allCampaignsData?.[Number(id)] : null;
+  const campaign: Campaign | null =
+    typeof id === 'string' && allCampaignsData.length > Number(id)
+      ? allCampaignsData[Number(id)]
+      : null;
 
   if (!isWalletConnected) return null;
 
@@ -54,19 +81,21 @@ function Details() {
     return <Typography sx={{ color: 'white' }}>Loading campaign details...</Typography>;
   }
 
-  // ✅ Step 4: Destructure safely
   const { owner, title, description, target, deadline, amountCollected, image } = campaign;
-
   const targetEther = ethers.utils.formatEther(target);
+
   const deadlineTimestamp =
-    typeof deadline === 'object' && deadline.toNumber ? deadline.toNumber() : Number(deadline);
+    typeof deadline === 'object' && 'toNumber' in deadline
+      ? deadline.toNumber()
+      : Number(deadline);
+
   const dayLeft = daysLeft(deadlineTimestamp);
 
   return (
     <Box>
       <Grid container spacing={5}>
         <Grid item md={12} lg={6}>
-          <StyledImageBox component="img" alt="The Campaign" src={image} />
+          <StyledImageBox alt="The Campaign" src={image} />
         </Grid>
         <Grid lg={6} item md={12}>
           <Box sx={{ display: 'flex', gap: 6, justifyContent: 'center', flexDirection: 'column' }}>
@@ -102,7 +131,7 @@ function Details() {
           <StyledFlexColBox>
             <StyledTitleTypography variant="h5">Donation</StyledTitleTypography>
             <Box>
-              {donatationData?.map((data, index) => (
+              {donatationData?.map((data: Donator, index: number) => (
                 <DonationCard key={index} index={index} data={data} />
               ))}
             </Box>
@@ -115,6 +144,6 @@ function Details() {
       </Grid>
     </Box>
   );
-}
+};
 
 export default Details;

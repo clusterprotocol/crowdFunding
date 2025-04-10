@@ -1,12 +1,12 @@
 import styled from "@emotion/styled";
 import { Box, Typography, TextField, Button } from '@mui/material'
 
-export const StyledImageBox = styled(Box)({
+export const StyledImageBox = styled('img')({
     borderRadius: 10,
     width: '800px',
-    height: "400px",
-
-});
+    height: '400px',
+    objectFit: 'cover',
+  });
 
 
 
