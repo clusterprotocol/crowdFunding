@@ -1,6 +1,5 @@
 // pages/_app.tsx
 import type { AppProps } from "next/app";
-import "../styles/globals.css";
 import theme from '../styles/theme'
 import { ThemeProvider } from "@emotion/react";
 import { ResponsiveDrawer } from "../components";
