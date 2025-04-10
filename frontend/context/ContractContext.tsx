@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { WalletConnectionContext } from "./WalletConnectionContext";
-import abi from "../contracts/Campaign-abi.json";
-import deployedAddress from '../contracts/Campaign-address.json';
+import abi from "../contracts/CrowdFunding-abi.json";
+import deployedAddress from '../contracts/CrowdFunding-address.json';
 
 
 const CONTRACT_ADDRESS = deployedAddress.address;
